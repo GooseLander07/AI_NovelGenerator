@@ -1,7 +1,7 @@
 #novel_generator/architecture.py
 # -*- coding: utf-8 -*-
 """
-小说总体架构生成（Novel_architecture_generate 及相关辅助函数）
+Novel architecture generation (Novel_architecture_generate and related helper functions)
 """
 import os
 import json
@@ -20,8 +20,8 @@ from utils import clear_file_content, save_string_to_txt
 
 def load_partial_architecture_data(filepath: str) -> dict:
     """
-    从 filepath 下的 partial_architecture.json 读取已有的阶段性数据。
-    如果文件不存在或无法解析，返回空 dict。
+    Reads existing phase data from partial_architecture.json under filepath.
+    If the file does not exist or cannot be parsed, return an empty dict.
     """
     partial_file = os.path.join(filepath, "partial_architecture.json")
     if not os.path.exists(partial_file):
@@ -36,7 +36,7 @@ def load_partial_architecture_data(filepath: str) -> dict:
 
 def save_partial_architecture_data(filepath: str, data: dict):
     """
-    将阶段性数据写入 partial_architecture.json。
+    Write the phase data to partial_architecture.json.
     """
     partial_file = os.path.join(filepath, "partial_architecture.json")
     try:
@@ -55,24 +55,24 @@ def Novel_architecture_generate(
     number_of_chapters: int,
     word_number: int,
     filepath: str,
-    user_guidance: str = "",  # 新增参数
+    user_guidance: str = "",  # new parameter
     temperature: float = 0.7,
     max_tokens: int = 2048,
     timeout: int = 600
 ) -> None:
     """
-    依次调用:
-      1. core_seed_prompt
-      2. character_dynamics_prompt
-      3. world_building_prompt
-      4. plot_architecture_prompt
-    若在中间任何一步报错且重试多次失败，则将已经生成的内容写入 partial_architecture.json 并退出；
-    下次调用时可从该步骤继续。
-    最终输出 Novel_architecture.txt
+    In order: 
+ 1. core_seed_prompt 
+ 2. character_dynamics_prompt 
+ 3. world_building_prompt 
+ 4. plot_architecture_prompt 
+ If any of the intermediate steps report an error and retrying fails multiple times, then write what has been generated into the partial_architecture.json and exit; 
+ you can continue from this step in the next call.
+    Final output Novel_architecture.txt 
 
-    新增：
-    - 在完成角色动力学设定后，依据该角色体系，使用 create_character_state_prompt 生成初始角色状态表，
-      并存储到 character_state.txt，后续维护更新。
+ Added: 
+ - After setting up the character dynamics, use create_character_state_prompt to generate an initial character state table based on the character system 
+ and store it in character_state.txt for subsequent maintenance and updates.
     """
     os.makedirs(filepath, exist_ok=True)
     partial_data = load_partial_architecture_data(filepath)
@@ -85,7 +85,7 @@ def Novel_architecture_generate(
         max_tokens=max_tokens,
         timeout=timeout
     )
-    # Step1: 核心种子
+    # Step1: Core seeds
     if "core_seed_result" not in partial_data:
         logging.info("Step1: Generating core_seed_prompt (核心种子) ...")
         prompt_core = core_seed_prompt.format(
@@ -93,7 +93,7 @@ def Novel_architecture_generate(
             genre=genre,
             number_of_chapters=number_of_chapters,
             word_number=word_number,
-            user_guidance=user_guidance  # 修复：添加内容指导
+            user_guidance=user_guidance  # Fix: Add content guidance
         )
         core_seed_result = invoke_with_cleaning(llm_adapter, prompt_core)
         if not core_seed_result.strip():
@@ -104,7 +104,7 @@ def Novel_architecture_generate(
         save_partial_architecture_data(filepath, partial_data)
     else:
         logging.info("Step1 already done. Skipping...")
-    # Step2: 角色动力学
+    # Step2: Character dynamics
     if "character_dynamics_result" not in partial_data:
         logging.info("Step2: Generating character_dynamics_prompt ...")
         prompt_character = character_dynamics_prompt.format(
@@ -120,7 +120,7 @@ def Novel_architecture_generate(
         save_partial_architecture_data(filepath, partial_data)
     else:
         logging.info("Step2 already done. Skipping...")
-    # 生成初始角色状态
+    # Generate initial character state
     if "character_dynamics_result" in partial_data and "character_state_result" not in partial_data:
         logging.info("Generating initial character state from character dynamics ...")
         prompt_char_state_init = create_character_state_prompt.format(
@@ -137,12 +137,12 @@ def Novel_architecture_generate(
         save_string_to_txt(character_state_init, character_state_file)
         save_partial_architecture_data(filepath, partial_data)
         logging.info("Initial character state created and saved.")
-    # Step3: 世界观
+    # Step3: World Building
     if "world_building_result" not in partial_data:
         logging.info("Step3: Generating world_building_prompt ...")
         prompt_world = world_building_prompt.format(
             core_seed=partial_data["core_seed_result"].strip(),
-            user_guidance=user_guidance  # 修复：添加用户指导
+            user_guidance=user_guidance  # Fix: Add user guide
         )
         world_building_result = invoke_with_cleaning(llm_adapter, prompt_world)
         if not world_building_result.strip():
@@ -153,14 +153,14 @@ def Novel_architecture_generate(
         save_partial_architecture_data(filepath, partial_data)
     else:
         logging.info("Step3 already done. Skipping...")
-    # Step4: 三幕式情节
+    # Step4: Plot Arch
     if "plot_arch_result" not in partial_data:
         logging.info("Step4: Generating plot_architecture_prompt ...")
         prompt_plot = plot_architecture_prompt.format(
             core_seed=partial_data["core_seed_result"].strip(),
             character_dynamics=partial_data["character_dynamics_result"].strip(),
             world_building=partial_data["world_building_result"].strip(),
-            user_guidance=user_guidance  # 修复：添加用户指导
+            user_guidance=user_guidance  # Fix: Add user guide
         )
         plot_arch_result = invoke_with_cleaning(llm_adapter, prompt_plot)
         if not plot_arch_result.strip():
@@ -178,15 +178,15 @@ def Novel_architecture_generate(
     plot_arch_result = partial_data["plot_arch_result"]
 
     final_content = (
-        "#=== 0) 小说设定 ===\n"
-        f"主题：{topic},类型：{genre},篇幅：约{number_of_chapters}章（每章{word_number}字）\n\n"
-        "#=== 1) 核心种子 ===\n"
+        "#=== 0) Fictional settings ===\n"
+        f"Topic：{topic},Genre：{genre},Length (Approx): {number_of_chapters}Chapter (per chapter {word_number} words）\n\n"
+        "#=== 1) Core seeds ===\n"
         f"{core_seed_result}\n\n"
-        "#=== 2) 角色动力学 ===\n"
+        "#=== 2) Character dynamics ===\n"
         f"{character_dynamics_result}\n\n"
-        "#=== 3) 世界观 ===\n"
+        "#=== 3) World Bulding ===\n"
         f"{world_building_result}\n\n"
-        "#=== 4) 三幕式情节架构 ===\n"
+        "#=== 4) Plot Arch ===\n"
         f"{plot_arch_result}\n"
     )
 
